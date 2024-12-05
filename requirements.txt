@@ -1,0 +1,7 @@
+qwen_vl_utils
+modelscope
+accelerate>=0.26.0
+optimum
+auto-gptq
+
+opencv-python
