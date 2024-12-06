@@ -1,3 +1,13 @@
+# 安装cuda扩展
+# 对于CUDA 11.7
+pip install auto-gptq[cuda117]
+
+# 对于CUDA 11.8
+pip install auto-gptq[cuda118]
+
+# 对于CUDA 12.1
+pip install auto-gptq[cuda121]
+
 qwen_vl_utils
 modelscope
 accelerate>=0.26.0
