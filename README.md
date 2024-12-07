@@ -25,3 +25,4 @@ git clone https://www.modelscope.cn/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch
 ```bash
 python main.py
 ```
+之后的目标是对模型进行微调，量化。
