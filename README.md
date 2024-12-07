@@ -1,7 +1,8 @@
 # Qwen-vl
 离线模型，实现语音文本对话，视频识别等功能。
 
-需要 python 3.9 以上，cuda 环境。
+python 3.9 以上，模型是 qwen-2b-vl ，要求显存 8G 以上，cuda 环境。  
+  
 
 下载 ASR 模型和 VAD 文件放到 models 目录下
 - SenseVoiceSmall
