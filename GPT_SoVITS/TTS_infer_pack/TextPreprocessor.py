@@ -55,11 +55,11 @@ class TextPreprocessor:
         self.device = device
         
     def preprocess(self, text:str, lang:str, text_split_method:str)->List[Dict]:
-        print(i18n("############ 切分文本 ############"))
+        # print(i18n("############ 切分文本 ############"))
         text = self.replace_consecutive_punctuation(text) # 变量命名应该是写错了
         texts = self.pre_seg_text(text, lang, text_split_method)
         result = []
-        print(i18n("############ 提取文本Bert特征 ############"))
+        # print(i18n("############ 提取文本Bert特征 ############"))
         for text in tqdm(texts):
             phones, bert_features, norm_text = self.segment_and_extract_feature_for_text(text, lang)
             if phones is None:
@@ -78,8 +78,8 @@ class TextPreprocessor:
         text = text.strip("\n")
         if (text[0] not in splits and len(get_first(text)) < 4): 
             text = "。" + text if lang != "en" else "." + text
-        print(i18n("实际输入的目标文本:"))
-        print(text)
+        # print(i18n("实际输入的目标文本:"))
+        # print(text)
         
         if text_split_method.startswith("auto_cut"):
             try:
@@ -119,8 +119,8 @@ class TextPreprocessor:
             else:
                 texts.append(text)
             
-        print(i18n("实际输入的目标文本(切句后):"))
-        print(texts)
+        # print(i18n("实际输入的目标文本(切句后):"))
+        # print(texts)
         return texts
     
     def segment_and_extract_feature_for_text(self, texts:list, language:str)->Tuple[list, torch.Tensor, str]:
@@ -242,6 +242,3 @@ class TextPreprocessor:
         pattern = f'([{punctuations}])([{punctuations}])+'
         result = re.sub(pattern, r'\1', text)
         return result
-
-
-
