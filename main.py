@@ -1,3 +1,10 @@
+# 在所有其他导入之前添加这段代码
+import logging
+import os
+
+# 方法1：设置 jieba 日志级别
+logging.getLogger("jieba").setLevel(logging.ERROR)
+
 import asyncio
 import signal
 import threading
