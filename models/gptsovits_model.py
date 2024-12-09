@@ -104,7 +104,7 @@ class TTSThread(threading.Thread):
                 # print("开始生成语音...")
                 gen = tts_synthesizer.generate(task, return_type="numpy")
                 audio_data = next(gen)
-                print("语音生成完成")
+                print("语音生成完成", end="\n\n") # end="\n\n" 表示换行两次
                 
                 if self.interrupt_flag:  # 再次检查是否被中断
                     continue
