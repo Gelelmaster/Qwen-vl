@@ -755,7 +755,7 @@ class TTS:
                                 precision=self.precision
                                 )
         else:
-            # print(i18n("############ 切分文本 ############"))
+            print(i18n("############ 切分文本 ############"))
             texts = self.text_preprocessor.pre_seg_text(text, text_lang, text_split_method)
             data = []
             for i in range(len(texts)):
@@ -765,8 +765,8 @@ class TTS:
             
             def make_batch(batch_texts):
                 batch_data = []
-                # print(i18n("############ 提取文本Bert特征 ############"))
-                for text in tqdm(batch_texts):
+                print(i18n("############ 提取文本Bert特征 ############"))
+                for text in tqdm(batch_texts, disable=True): # disable=True 不显示进度条
                     phones, bert_features, norm_text = self.text_preprocessor.segment_and_extract_feature_for_text(text, text_lang)
                     if phones is None:
                         continue
@@ -791,7 +791,7 @@ class TTS:
 
         t2 = ttime()
         try:
-            # print("############ 推理 ############")
+            print("############ 推理 ############")
             ###### inference ######
             t_34 = 0.0
             t_45 = 0.0
