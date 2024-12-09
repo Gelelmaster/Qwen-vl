@@ -21,7 +21,7 @@ print(f"使用设备: {device}")
 synthesizer_name = app_config.synthesizer
 synthesizer_module = import_module(f"Synthesizers.{synthesizer_name}")
 TTS_Synthesizer = synthesizer_module.TTS_Synthesizer
-tts_synthesizer = TTS_Synthesizer(debug_mode=True)
+tts_synthesizer = TTS_Synthesizer(debug_mode=False)
 
 # 初始化音频播放
 mixer.init(frequency=32000, size=-16, channels=2, buffer=256)
@@ -86,14 +86,14 @@ class TTSThread(threading.Thread):
                     break
                     
                 text, character, emotion = self.current_task
-                print(f"开始处理文本: {text}, 角色: {character}, 情感: {emotion}")
+                # print(f"开始处理文本: {text}, 角色: {character}, 情感: {emotion}")
                 
                 # 重置中断标志
                 self.interrupt_flag = False
                 
                 # 生成语音
                 data = {"text": text, "character": character, "emotion": emotion}
-                print("正在解析参数...")
+                # print("正在解析参数...")
                 task = tts_synthesizer.params_parser(data)
                 if hasattr(task, 'to'):
                     task = task.to(device)
@@ -101,10 +101,10 @@ class TTSThread(threading.Thread):
                 if self.interrupt_flag:  # 检查是否被中断
                     continue
                     
-                print("开始生成语音...")
+                # print("开始生成语音...")
                 gen = tts_synthesizer.generate(task, return_type="numpy")
                 audio_data = next(gen)
-                print("语音生成完成")
+                # print("语音生成完成")
                 
                 if self.interrupt_flag:  # 再次检查是否被中断
                     continue
@@ -117,7 +117,7 @@ class TTSThread(threading.Thread):
                     audio_data = audio_data.reshape(-1, 1)
                 
                 # 播放音频
-                print("准备播放音频...")
+                # print("准备播放音频...")
                 audio_buffer = io.BytesIO()
                 sf.write(audio_buffer, audio_data, 32000, format='WAV')
                 audio_buffer.seek(0)
@@ -126,7 +126,7 @@ class TTSThread(threading.Thread):
                     continue
                 
                 sound = mixer.Sound(audio_buffer)
-                print("开始播放音频...")
+                # print("开始播放音频...")
                 sound.play()
                 
                 # 等待播放完成或被中断
@@ -137,7 +137,8 @@ class TTSThread(threading.Thread):
                     print("播放被中断")
                     mixer.stop()
                 else:
-                    print("音频播放完成")
+                    # print("音频播放完成")
+                    continue
                 
             except Exception as e:
                 print(f"TTS线程错误: {e}")
