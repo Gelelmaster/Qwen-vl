@@ -46,7 +46,13 @@ class TextInputManager:
                     break
                     
                 if text:
-                    frame = self.camera_manager.get_current_frame()
+                    # 检查 camera_manager 是否为 None
+                    if self.camera_manager is not None:
+                        frame = self.camera_manager.get_current_frame()
+                    else:
+                        frame = None  # 或者使用一个默认值
+                        print("未使用摄像头，跳过帧处理")
+                    
                     response = self.qwen_model.inference(text, frame)
                     print("助手:", response)
                     
