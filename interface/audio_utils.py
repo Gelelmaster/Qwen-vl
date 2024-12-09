@@ -24,8 +24,11 @@ class AudioManager:
                         text = await asr_model.transcribe(audio_buffer)
                         if text:
                             print("\n语音输入:", text)
-                            frame = self.camera_manager.get_current_frame()
-                            response = self.qwen_model.inference(text, frame)
+                            if self.camera_manager is not None:
+                                frame = self.camera_manager.get_current_frame()
+                                response = self.qwen_model.inference(text, frame)
+                            else:
+                                response = self.qwen_model.inference(text, None)
                             print("助手:", response)
                             
                             # print(f"添加响应到TTS队列: {response}")
