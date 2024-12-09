@@ -31,11 +31,11 @@ from TTS_infer_pack.TextPreprocessor import TextPreprocessor
 import pickle
 i18n = I18nAuto()
 
-# 禁用警告和日志
 import warnings
 import torch
 import logging
 from torch.nn.utils import weight_norm
+# 禁用警告和日志
 warnings.filterwarnings("ignore", category=FutureWarning)
 logging.getLogger("torch.nn.utils.weight_norm").setLevel(logging.ERROR)
 
@@ -127,16 +127,16 @@ class TTS_Config:
         
         if (self.t2s_weights_path in [None, ""]) or (not os.path.exists(self.t2s_weights_path)):
             self.t2s_weights_path = self.default_configs['t2s_weights_path']
-            print(f"fall back to default t2s_weights_path: {self.t2s_weights_path}")
+            # print(f"fall back to default t2s_weights_path: {self.t2s_weights_path}")
         if (self.vits_weights_path in [None, ""]) or (not os.path.exists(self.vits_weights_path)):
             self.vits_weights_path = self.default_configs['vits_weights_path']
-            print(f"fall back to default vits_weights_path: {self.vits_weights_path}")
+            # print(f"fall back to default vits_weights_path: {self.vits_weights_path}")
         if (self.bert_base_path in [None, ""]) or (not os.path.exists(self.bert_base_path)):
             self.bert_base_path = self.default_configs['bert_base_path']
-            print(f"fall back to default bert_base_path: {self.bert_base_path}")
+            # print(f"fall back to default bert_base_path: {self.bert_base_path}")
         if (self.cnhubert_base_path in [None, ""]) or (not os.path.exists(self.cnhubert_base_path)):
             self.cnhubert_base_path = self.default_configs['cnhubert_base_path']
-            print(f"fall back to default cnhubert_base_path: {self.cnhubert_base_path}")
+            # print(f"fall back to default cnhubert_base_path: {self.cnhubert_base_path}")
         self.update_configs()
         
         
@@ -246,7 +246,7 @@ class TTS:
         
         
     def init_cnhuhbert_weights(self, base_path: str):
-        print(f"Loading CNHuBERT weights from {base_path}")
+        # print(f"Loading CNHuBERT weights from {base_path}")
         self.cnhuhbert_model = CNHubert(base_path)
         self.cnhuhbert_model=self.cnhuhbert_model.eval()
         self.cnhuhbert_model = self.cnhuhbert_model.to(self.configs.device)
@@ -256,7 +256,7 @@ class TTS:
         
         
     def init_bert_weights(self, base_path: str):
-        print(f"Loading BERT weights from {base_path}")
+        # print(f"Loading BERT weights from {base_path}")
         self.bert_tokenizer = AutoTokenizer.from_pretrained(base_path)
         self.bert_model = AutoModelForMaskedLM.from_pretrained(base_path)
         self.bert_model=self.bert_model.eval()
@@ -265,7 +265,7 @@ class TTS:
             self.bert_model = self.bert_model.half()
         
     def init_vits_weights(self, weights_path: str):
-        print(f"Loading VITS weights from {weights_path}")
+        # print(f"Loading VITS weights from {weights_path}")
         self.configs.vits_weights_path = weights_path
         self.configs.save_configs()
         dict_s2 = torch.load(weights_path, map_location=self.configs.device)
@@ -297,7 +297,7 @@ class TTS:
 
         
     def init_t2s_weights(self, weights_path: str):
-        print(f"Loading Text2Semantic weights from {weights_path}")
+        # print(f"Loading Text2Semantic weights from {weights_path}")
         self.configs.t2s_weights_path = weights_path
         self.configs.save_configs()
         self.configs.hz = 50
