@@ -1,3 +1,5 @@
+import logging
+logging.getLogger("root").setLevel(logging.ERROR)  # 只显示错误级别的日志
 from funasr import AutoModel
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
 import numpy as np
