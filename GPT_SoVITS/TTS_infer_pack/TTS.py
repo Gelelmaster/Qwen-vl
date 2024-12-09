@@ -63,7 +63,7 @@ custom:
 def set_seed(seed:int):
     seed = int(seed)
     seed = seed if seed != -1 else random.randrange(1 << 32)
-    print(f"Set seed to {seed}")
+    # print(f"Set seed to {seed}")
     os.environ['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
@@ -665,24 +665,24 @@ class TTS:
         repetition_penalty = inputs.get("repetition_penalty", 1.35)
 
         if parallel_infer:
-            print(i18n("并行推理模式已开启"))
+            # print(i18n("并行推理模式已开启"))
             self.t2s_model.model.infer_panel = self.t2s_model.model.infer_panel_batch_infer_with_flash_attn
         else:
-            print(i18n("并行推理模式已关闭"))
+            # print(i18n("并行推理模式已关闭"))
             self.t2s_model.model.infer_panel = self.t2s_model.model.infer_panel_0307
 
         if return_fragment:
-            print(i18n("分段返回模式已开启"))
+            # print(i18n("分段返回模式已开启"))
             if split_bucket:
                 split_bucket = False
-                print(i18n("分段返回模式不支持分桶处理，已自动关闭分桶处理"))
+                # print(i18n("分段返回模式不支持分桶处理，已自动关闭分桶处理"))
 
-        if split_bucket:
-            print(i18n("分桶处理模式已开启"))
+        # if split_bucket:
+        #     print(i18n("分桶处理模式已开启"))
 
         if fragment_interval<0.01:
             fragment_interval = 0.01
-            print(i18n("分段间隔过小，已自动设置为0.01"))
+            # print(i18n("分段间隔过小，已自动设置为0.01"))
 
         no_prompt_text = False
         if prompt_text in [None, ""]:
@@ -704,7 +704,7 @@ class TTS:
                 del self.prompt_cache
                 with open(prompt_cache_path, "rb") as f:
                     self.prompt_cache = pickle.load(f)
-                print(i18n("参考音频缓存已加载"))
+                # print(i18n("参考音频缓存已加载"))
                 self.prompt_cache_path = prompt_cache_path
         elif not test_mode:
             # when in test mode, the prompt_cache should be set manually.
@@ -715,7 +715,7 @@ class TTS:
             if not no_prompt_text:
                 prompt_text = prompt_text.strip("\n")
                 if (prompt_text[-1] not in splits): prompt_text += "。" if prompt_lang != "en" else "."
-                print(i18n("实际输入的参考文本:"), prompt_text)
+                # print(i18n("实际输入的参考文本:"), prompt_text)
                 if self.prompt_cache["prompt_text"] != prompt_text:
                     self.prompt_cache["prompt_text"] = prompt_text
                     self.prompt_cache["prompt_lang"] = prompt_lang
@@ -731,7 +731,7 @@ class TTS:
                 os.makedirs(os.path.dirname(prompt_cache_path), exist_ok=True)
                 with open(prompt_cache_path, "wb") as f:
                     pickle.dump(self.prompt_cache, f)
-                print(i18n("参考音频缓存已保存"))
+                # print(i18n("参考音频缓存已保存"))
                 self.prompt_cache_path = prompt_cache_path
 
         ###### text preprocessing ########
@@ -755,7 +755,7 @@ class TTS:
                                 precision=self.precision
                                 )
         else:
-            print(i18n("############ 切分文本 ############"))
+            # print(i18n("############ 切分文本 ############"))
             texts = self.text_preprocessor.pre_seg_text(text, text_lang, text_split_method)
             data = []
             for i in range(len(texts)):
@@ -765,7 +765,7 @@ class TTS:
             
             def make_batch(batch_texts):
                 batch_data = []
-                print(i18n("############ 提取文本Bert特征 ############"))
+                # print(i18n("############ 提取文本Bert特征 ############"))
                 for text in tqdm(batch_texts):
                     phones, bert_features, norm_text = self.text_preprocessor.segment_and_extract_feature_for_text(text, text_lang)
                     if phones is None:
@@ -791,7 +791,7 @@ class TTS:
 
         t2 = ttime()
         try:
-            print("############ 推理 ############")
+            # print("############ 推理 ############")
             ###### inference ######
             t_34 = 0.0
             t_45 = 0.0
@@ -812,7 +812,7 @@ class TTS:
                 norm_text:str = item["norm_text"]
                 max_len = item["max_len"]
 
-                print(i18n("前端处理后的文本(每句):"), norm_text)
+                # print(i18n("前端处理后的文本(每句):"), norm_text)
                 if no_prompt_text :
                     prompt = None
                 else:
@@ -883,7 +883,7 @@ class TTS:
                 t5 = ttime()
                 t_45 += t5 - t4
                 if return_fragment:
-                    print("############ 各阶段耗时: 处理参考音频 [%.3f]s, 文本处理 [%.3f]s, t2s_model [%.3f]s, vits_model [%.3f]s ############" % (t1 - t0, t2 - t1, t4 - t3, t5 - t4))
+                    # print("############ 各阶段耗时: 处理参考音频 [%.3f]s, 文本处理 [%.3f]s, t2s_model [%.3f]s, vits_model [%.3f]s ############" % (t1 - t0, t2 - t1, t4 - t3, t5 - t4))
                     yield self.audio_postprocess([batch_audio_fragment], 
                                                     self.configs.sampling_rate, 
                                                     None, 
@@ -900,7 +900,7 @@ class TTS:
                     return
 
             if not return_fragment:
-                print("############ 各阶段耗时: 处理参考音频 [%.3f]s, 文本处理 [%.3f]s, t2s_model [%.3f]s, vits_model [%.3f]s ############" % (t1 - t0, t2 - t1, t4 - t3, t5 - t4))
+                # print("############ 各阶段耗时: 处理参考音频 [%.3f]s, 文本处理 [%.3f]s, t2s_model [%.3f]s, vits_model [%.3f]s ############" % (t1 - t0, t2 - t1, t4 - t3, t5 - t4))
                 yield self.audio_postprocess(audio, 
                                                 self.configs.sampling_rate, 
                                                 batch_index_list, 
