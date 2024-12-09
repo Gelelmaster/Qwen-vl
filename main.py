@@ -21,10 +21,10 @@ class Application:
         try:
             self.camera_manager = CameraManager()
             
-            # 如果摄像头初始化被取消，直接退出程序
-            if not self.camera_manager.camera_enabled and self.camera_manager.was_interrupted:
-                print("\n摄像头初始化被取消")
-                return
+            # 如果摄像头不可用，设置 camera_manager 为 None
+            if not self.camera_manager.camera_enabled:
+                print("\n未发现摄像头，默认不使用")
+                self.camera_manager = None
                 
             # 获取角色列表并选择角色
             characters = get_character_list()
@@ -45,7 +45,7 @@ class Application:
             self.running = False
 
     def cleanup(self):
-        """理所有资源"""
+        """清理所有资源"""
         print("\n开始清理应用资源...")
         self.running = False
         
@@ -54,7 +54,9 @@ class Application:
         if self.text_manager is not None:
             self.text_manager.running = False
         if self.camera_manager is not None:
+            print("开始清理摄像头资源...")
             self.camera_manager.cleanup()
+            print("摄像头资源清理完成")
 
     async def run(self):
         """运行应用"""
