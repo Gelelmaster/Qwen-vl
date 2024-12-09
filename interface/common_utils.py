@@ -51,7 +51,7 @@ class TextInputManager:
                         frame = self.camera_manager.get_current_frame()
                     else:
                         frame = None  # 或者使用一个默认值
-                        print("未使用摄像头，跳过帧处理")
+                        print("未使用摄像头，跳过帧处理\n")
                     
                     response = self.qwen_model.inference(text, frame)
                     print("助手:", response)
