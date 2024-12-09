@@ -2,6 +2,8 @@ import io
 import numpy as np
 import torch
 import soundfile as sf
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide" # 隐藏 pygame 的欢迎信息
 from pygame import mixer
 import asyncio
 import threading
