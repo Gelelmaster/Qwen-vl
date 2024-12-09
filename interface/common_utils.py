@@ -64,9 +64,9 @@ class TextInputManager:
                         tts_thread.queue.queue.clear()
                     
                     # 添加新的语音输出
-                    print(f"添加响应到TTS队列: {response}")
+                    # print(f"添加响应到TTS队列: {response}")
                     tts_thread.add_text(response, self.character, self.emotion)
-                    print("响应已添加到TTS队列")
+                    # print("响应已添加到TTS队列")
                     
             except Exception as e:
                 print(f"处理文本输入时发生错误: {e}")
