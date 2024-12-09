@@ -1,244 +1,274 @@
-
-import os, sys
-
-from tqdm import tqdm
-now_dir = os.getcwd()
-sys.path.append(now_dir)
-
 import re
-import torch
-import LangSegment
-
-from typing import Dict, List, Tuple
-from text.cleaner import clean_text
-from text import cleaned_text_to_sequence
-from transformers import AutoModelForMaskedLM, AutoTokenizer
-from TTS_infer_pack.text_segmentation_method import split_big_text, splits, get_method as get_seg_method
-
+from typing import Callable
 from tools.i18n.i18n import I18nAuto
 
 i18n = I18nAuto()
 punctuation = set(['!', '?', '…', ',', '.', '-'," "])
+METHODS = dict()
 
-def get_first(text:str) -> str:
-    pattern = "[" + "".join(re.escape(sep) for sep in splits) + "]"
-    text = re.split(pattern, text)[0].strip()
-    return text
+def get_method(name:str)->Callable:
+    method = METHODS.get(name, None)
+    if method is None:
+        raise ValueError(f"Method {name} not found")
+    return method
 
-def merge_short_text_in_array(texts:str, threshold:int) -> list:
-    if (len(texts)) < 2:
-        return texts
+def get_method_names()->list:
+    return list(METHODS.keys())
+
+def register_method(name):
+    def decorator(func):
+        METHODS[name] = func
+        return func
+    return decorator
+
+splits = {"，", "。", "？", "！", ",", ".", "?", "!", "~", ":", "：", "—", "…", }
+
+
+
+def split_big_text(text, max_len=510):
+    # 定义全角和半角标点符号
+    punctuation = "".join(splits)
+
+    # 切割文本
+    segments = re.split('([' + punctuation + '])', text)
+    
+    # 初始化结果列表和当前片段
     result = []
-    text = ""
-    for ele in texts:
-        text += ele
-        if len(text) >= threshold:
-            result.append(text)
-            text = ""
-    if (len(text) > 0):
-        if len(result) == 0:
-            result.append(text)
+    current_segment = ''
+    
+    for segment in segments:
+        # 如果当前片段加上新的片段长度超过max_len，就将当前片段加入结果列表，并重置当前片段
+        if len(current_segment + segment) > max_len:
+            result.append(current_segment)
+            current_segment = segment
         else:
-            result[len(result) - 1] += text
+            current_segment += segment
+    
+    # 将最后一个片段加入结果列表
+    if current_segment:
+        result.append(current_segment)
+    
     return result
 
-
-
-
-
-
-class TextPreprocessor:
-    def __init__(self, bert_model:AutoModelForMaskedLM, 
-                 tokenizer:AutoTokenizer, device:torch.device):
-        self.bert_model = bert_model
-        self.tokenizer = tokenizer
-        self.device = device
-        
-    def preprocess(self, text:str, lang:str, text_split_method:str)->List[Dict]:
-        # print(i18n("############ 切分文本 ############"))
-        text = self.replace_consecutive_punctuation(text) # 变量命名应该是写错了
-        texts = self.pre_seg_text(text, lang, text_split_method)
-        result = []
-        # print(i18n("############ 提取文本Bert特征 ############"))
-        for text in tqdm(texts):
-            phones, bert_features, norm_text = self.segment_and_extract_feature_for_text(text, lang)
-            if phones is None:
-                continue
-            res={
-                "phones": phones,
-                "bert_features": bert_features,
-                "norm_text": norm_text,
-            }
-            result.append(res)
-        return result
-
-    def pre_seg_text(self, text:str, lang:str, text_split_method:str):
-        
-        
-        text = text.strip("\n")
-        if (text[0] not in splits and len(get_first(text)) < 4): 
-            text = "。" + text if lang != "en" else "." + text
-        # print(i18n("实际输入的目标文本:"))
-        # print(text)
-        
-        if text_split_method.startswith("auto_cut"):
-            try:
-                max_word_count = int(text_split_method.split("_")[-1])
-            except:
-                max_word_count = 20
-            if max_word_count < 5 or max_word_count > 1000:
-                max_word_count = 20
-            text_split_method = "auto_cut"
-            seg_method = get_seg_method(text_split_method)
-            text = seg_method(text, max_word_count)
+def split(todo_text):
+    todo_text = todo_text.replace("……", "。").replace("——", "，")
+    if todo_text[-1] not in splits:
+        todo_text += "。"
+    i_split_head = i_split_tail = 0
+    len_text = len(todo_text)
+    todo_texts = []
+    while 1:
+        if i_split_head >= len_text:
+            break  # 结尾一定有标点，所以直接跳出即可，最后一段在上次已加入
+        if todo_text[i_split_head] in splits:
+            i_split_head += 1
+            todo_texts.append(todo_text[i_split_tail:i_split_head])
+            i_split_tail = i_split_head
         else:
-            seg_method = get_seg_method(text_split_method)
-            text = seg_method(text)
-        
-        while "\n\n" in text:
-            text = text.replace("\n\n", "\n")
+            i_split_head += 1
+    return todo_texts
 
-        _texts = text.split("\n")
-        _texts = self.process_text(_texts)
-        _texts = merge_short_text_in_array(_texts, 5)
-        texts = []
+# 不切
+@register_method("cut0")
+def cut0(inp):
+    if not set(inp).issubset(punctuation):
+        return inp
+    else:
+        return "/n"
 
+
+# 凑四句一切
+@register_method("cut1")
+def cut1(inp):
+    inp = inp.strip("\n")
+    inps = split(inp)
+    split_idx = list(range(0, len(inps), 4))
+    # split_idx[-1] = None
+    split_idx.append(None)
+    if len(split_idx) > 1:
+        opts = []
+        for idx in range(len(split_idx) - 1):
+            opts.append("".join(inps[split_idx[idx]: split_idx[idx + 1]]))
+    else:
+        opts = [inp]
+    opts = [item for item in opts if not set(item).issubset(punctuation)]
+    return "\n".join(opts)
+
+
+# 凑50字一切
+@register_method("cut2")
+def cut2(inp, max_length=50):
+    inp = split_long_sentence(inp).strip("\n")
+    inps = split(inp)
+    if len(inps) < 2:
+        return inp
+    opts = []
+    summ = 0
+    tmp_str = ""
+    for i in range(len(inps)):
+        summ += len(inps[i])
+        tmp_str += inps[i]
+        if summ > max_length:
+            summ = 0
+            opts.append(tmp_str)
+            tmp_str = ""
+    if tmp_str != "":
+        opts.append(tmp_str)
+    # print(opts)
+    if len(opts) > 1 and len(opts[-1]) < 50:  ##如果最后一个太短了，和前一个合一起
+        opts[-2] = opts[-2] + opts[-1]
+        opts = opts[:-1]
+    opts = [item for item in opts if not set(item).issubset(punctuation)]
+    return "\n".join(opts)
+
+
+# 按中文句号。切
+@register_method("cut3")
+def cut3(inp):
+    inp = inp.strip("\n")
+    opts = ["%s" % item for item in inp.strip("。").split("。")]
+    opts = [item for item in opts if not set(item).issubset(punctuation)]
+    return "\n".join(opts)
+
+
+# 按英文句号.切
+@register_method("cut4")
+def cut4(inp):
+    inp = inp.strip("\n")
+    opts = ["%s" % item for item in inp.strip(".").split(".")]
+    opts = [item for item in opts if not set(item).issubset(punctuation)]
+    return "\n".join(opts)
+
+# 按标点符号切
+# contributed by https://github.com/AI-Hobbyist/GPT-SoVITS/blob/main/GPT_SoVITS/inference_webui.py
+@register_method("cut5")
+def cut5(inp):
+    # if not re.search(r'[^\w\s]', inp[-1]):
+    # inp += '。'
+    inp = inp.strip("\n")
+    # punds = r'[,.;?!、，。？！;：…]'
+    punds = r'[,.;?!、，。？！；：:…]'
+    items = re.split(f'({punds})', inp)
+    mergeitems = ["".join(group) for group in zip(items[::2], items[1::2])]
+    # 在句子不存在符号或句尾无符号的时候保证文本完整
+    if len(items)%2 == 1:
+        mergeitems.append(items[-1])
+    opts = [item for item in mergeitems if not set(item).issubset(punctuation)]
+    opts = "\n".join(opts)
+    return opts
+
+def count_words_multilang(text):
+    # 初始化计数器
+    word_count = 0
+    in_word = False
+    
+    for char in text:
+        if char.isspace():  # 如果当前字符是空格
+            in_word = False
+        elif char.isascii() and not in_word:  # 如果是ASCII字符（英文）并且不在单词内
+            word_count += 1  # 新的英文单词
+            in_word = True
+        elif not char.isascii():  # 如果字符非英文
+            word_count += 1  # 每个非英文字符单独计为一个字
+    
+    return word_count
+
+
+def cut_sentence_multilang(text, max_length=30):
+    # 初始化计数器
+    word_count = 0
+    in_word = False
+    
+    
+    for index, char in enumerate(text):
+        if char.isspace():  # 如果当前字符是空格
+            in_word = False
+        elif char.isascii() and not in_word:  # 如果是ASCII字符（英文）并且不在单词内
+            word_count += 1  # 新的英文单词
+            in_word = True
+        elif not char.isascii():  # 如果字符非英文
+            word_count += 1  # 每个非英文字符单独计为一个字
+        if word_count > max_length:
+            return text[:index], text[index:]
+    
+    return text, ""
+
+# contributed by XTer
+# 简单的按长度切分，不希望出现超长的句子
+def split_long_sentence(text, max_length=510):
+    
+    opts = []
+    sentences = text.split('\n')
+    for sentence in sentences:
+        prev_text , sentence = cut_sentence_multilang(sentence, max_length)
+        while sentence.strip() != "":
+            opts.append(prev_text)
+            prev_text , sentence = cut_sentence_multilang(sentence, max_length)
+        opts.append(prev_text)
+    return "\n".join(opts)
+
+
+# contributed by https://github.com/X-T-E-R/GPT-SoVITS-Inference/blob/main/GPT_SoVITS/TTS_infer_pack/text_segmentation_method.py
+@register_method("auto_cut")
+def auto_cut(inp, max_length=30):
+    # if not re.search(r'[^\w\s]', inp[-1]):
+    # inp += '。'
+    inp = inp.strip("\n")
+    inp = inp.replace(". ", "。")
+    erase_punds = r'[“”"‘’\'（）()【】[\]{}<>《》〈〉〔〕〖〗〘〙〚〛〛〞〟]'
+    inp = re.sub(erase_punds, '', inp)
+    split_punds = r'[?!。？！~：]'
+    if inp[-1] not in split_punds:
+        inp+="。"
+    items = re.split(f'({split_punds})', inp)
+    items = ["".join(group) for group in zip(items[::2], items[1::2])]
+
+    def process_commas(text, max_length):
+    
+        # Define separators and the regular expression for splitting
+        separators = ['，', ',', '、', '——', '…']
+        # 使用正则表达式的捕获组来保留分隔符，分隔符两边的括号就是所谓的捕获组
+        regex_pattern = '(' + '|'.join(map(re.escape, separators)) + ')'
+        # 使用re.split函数分割文本，由于使用了捕获组，分隔符也会作为分割结果的一部分返回
+        sentences = re.split(regex_pattern, text)
+  
+        processed_text = "" 
+        current_line = "" 
         
-        for text in _texts:
-            # 解决输入目标文本的空行导致报错的问题
-            if (len(text.strip()) == 0):
-               continue
-            if not re.sub("\W+", "", text):       
-                # 检测一下，如果是纯符号，就跳过。
-                continue
-            if (text[-1] not in splits): text += "。" if lang != "en" else "."
-            
-            # 解决句子过长导致Bert报错的问题
-            if (len(text) > 510):
-                texts.extend(split_big_text(text))
+        final_sentences = []
+        
+        for sentence in sentences:
+            if count_words_multilang(sentence)>max_length:
+                
+                final_sentences+=split_long_sentence(sentence,max_length=max_length).split("\n")
             else:
-                texts.append(text)
-            
-        # print(i18n("实际输入的目标文本(切句后):"))
-        # print(texts)
-        return texts
-    
-    def segment_and_extract_feature_for_text(self, texts:list, language:str)->Tuple[list, torch.Tensor, str]:
-        textlist, langlist = self.seg_text(texts, language)
-        if len(textlist) == 0:
-            return None, None, None
+                final_sentences.append(sentence)
         
-        phones, bert_features, norm_text = self.extract_bert_feature(textlist, langlist)
-        return phones, bert_features, norm_text
-
-
-    def seg_text(self, text:str, language:str)->Tuple[list, list]:
-
-        textlist=[]
-        langlist=[]
-        if language in ["auto", "zh", "ja"]:
-            LangSegment.setfilters(["zh","en","ja","ko"])
-            for tmp in LangSegment.getTexts(text):
-                if tmp["text"] == "":
-                    continue
-                if tmp["lang"] == "ko":
-                    langlist.append("zh")
-                elif tmp["lang"] == "en":
-                    langlist.append("en")
-                else:
-                    # 因无法区别中日文汉字,以用户输入为准
-                    langlist.append(language if language!="auto" else tmp["lang"])
-                textlist.append(tmp["text"])
-        elif language == "en":
-            LangSegment.setfilters(["en"])
-            formattext = " ".join(tmp["text"] for tmp in LangSegment.getTexts(text))
-            while "  " in formattext:
-                formattext = formattext.replace("  ", " ")
-            if formattext != "":
-                textlist.append(formattext)
-                langlist.append("en")
-            
-        elif language in ["all_zh","all_ja"]:
-
-            formattext = text
-            while "  " in formattext:
-                formattext = formattext.replace("  ", " ")
-            language = language.replace("all_","")
-            if text == "":
-                return [],[]
-            textlist.append(formattext)
-            langlist.append(language) 
-        
-        else:
-            raise ValueError(f"language {language} not supported")
-        
-        return textlist, langlist
-    
-
-    def extract_bert_feature(self, textlist:list, langlist:list):
-        phones_list = []
-        bert_feature_list = []
-        norm_text_list = []
-        for i in range(len(textlist)):
-            lang = langlist[i]
-            phones, word2ph, norm_text = self.clean_text_inf(textlist[i], lang)
-            _bert_feature = self.get_bert_inf(phones, word2ph, norm_text, lang)
-            # phones_list.append(phones)
-            phones_list.extend(phones)
-            norm_text_list.append(norm_text)
-            bert_feature_list.append(_bert_feature)
-        bert_feature = torch.cat(bert_feature_list, dim=1)
-        # phones = sum(phones_list, [])
-        norm_text = ''.join(norm_text_list)
-        return phones_list, bert_feature, norm_text
-
-
-    def get_bert_feature(self, text:str, word2ph:list)->torch.Tensor:
-        with torch.no_grad():
-            inputs = self.tokenizer(text, return_tensors="pt")
-            for i in inputs:
-                inputs[i] = inputs[i].to(self.device)
-            res = self.bert_model(**inputs, output_hidden_states=True)
-            res = torch.cat(res["hidden_states"][-3:-2], -1)[0].cpu()[1:-1]
-        assert len(word2ph) == len(text)
-        phone_level_feature = []
-        for i in range(len(word2ph)):
-            repeat_feature = res[i].repeat(word2ph[i], 1)
-            phone_level_feature.append(repeat_feature)
-        phone_level_feature = torch.cat(phone_level_feature, dim=0)
-        return phone_level_feature.T
-    
-    def clean_text_inf(self, text:str, language:str):
-        phones, word2ph, norm_text = clean_text(text, language)
-        phones = cleaned_text_to_sequence(phones)
-        return phones, word2ph, norm_text
-
-    def get_bert_inf(self, phones:list, word2ph:list, norm_text:str, language:str):
-        language=language.replace("all_","")
-        if language == "zh":
-            feature = self.get_bert_feature(norm_text, word2ph).to(self.device)
-        else:
-            feature = torch.zeros(
-                (1024, len(phones)),
-                dtype=torch.float32,
-            ).to(self.device)
-
-        return feature
-    
-    def process_text(self,texts):
-        _text=[]
-        if all(text in [None, " ", "\n",""] for text in texts):
-            raise ValueError(i18n("请输入有效文本"))
-        for text in texts:
-            if text in  [None, " ", ""]:
-                pass
+        for sentence in final_sentences:
+            # Add the length of the sentence plus one for the space or newline that will follow
+            if count_words_multilang(current_line + sentence) <= max_length:
+                # If adding the next sentence does not exceed max length, add it to the current line
+                current_line += sentence
             else:
-                _text.append(text)
-        return _text
+                # If the current line is too long, start a new line
+                processed_text += current_line.strip() + '\n'
+                current_line = sentence + " "  # Start the new line with the current sentence
+        
+        # Add any remaining text in current_line to processed_text
+        processed_text += current_line.strip()
+
+        return processed_text
+
+    final_items = []
+    for item in items:
+        final_items+=process_commas(item,max_length=max_length).split("\n")
+    final_items = [item for item in final_items if item.strip() and not (len(item.strip())==2 and item[0] in "?!，,。？！~：.") and not item.isspace() and not item in "?!，,。？！~：."]
     
 
-    def replace_consecutive_punctuation(self,text):
-        punctuations = ''.join(re.escape(p) for p in punctuation)
-        pattern = f'([{punctuations}])([{punctuations}])+'
-        result = re.sub(pattern, r'\1', text)
-        return result
+    return "\n".join(final_items)
+
+
+if __name__ == '__main__':
+    str1 = """我 有i一个j k 1"""
+    print(count_words_multilang(str1))
+    print(cut_sentence_multilang(str1, 20))
