@@ -31,6 +31,14 @@ from TTS_infer_pack.TextPreprocessor import TextPreprocessor
 import pickle
 i18n = I18nAuto()
 
+# 禁用警告和日志
+import warnings
+import torch
+import logging
+from torch.nn.utils import weight_norm
+warnings.filterwarnings("ignore", category=FutureWarning)
+logging.getLogger("torch.nn.utils.weight_norm").setLevel(logging.ERROR)
+
 # configs/tts_infer.yaml
 """
 default:
